@@ -6,7 +6,7 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use crate::schema::beers;
 
-#[derive(AsChangeset, Serialize, Deserialize, Queryable, Insertable)]
+#[derive(AsChangeset, Serialize, Deserialize, Queryable, Insertable, Debug)]
 #[table_name = "beers"]
 pub struct Beer {
     pub id: Option<i32>,
@@ -26,6 +26,15 @@ impl Beer {
 
     pub fn read(connection: &SqliteConnection) -> Vec<Beer> {
         beers::table.order(beers::id).load::<Beer>(connection).unwrap()
+    }
+
+    pub fn get_by_id(connection: &SqliteConnection, id: i32) -> Beer {
+        let mut b = beers::table
+            .filter(beers::id.eq(id))
+            .limit(1)
+            .load::<Beer>(connection)
+            .unwrap();
+        b.pop().unwrap()
     }
 
     pub fn update(id: i32, beer: Beer, connection: &SqliteConnection) -> bool {
