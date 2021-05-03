@@ -11,6 +11,8 @@ use rocket_contrib::json::Json;
 use rocket_contrib::json::JsonValue;
 //use serde::{Serialize, Deserialize};
 use std::thread;
+use std::panic;
+use std::process;
 use std::time::Duration;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
@@ -88,6 +90,18 @@ fn headache(connection: db::Connection) -> JsonValue {
 }
 
 fn main() {
+
+
+    // For debugging only, stopping everything when one thread panicked
+    // take_hook() returns the default hook in case when a custom one is not set
+    let orig_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        // invoke the default handler and exit the process
+        orig_hook(panic_info);
+        process::exit(1);
+    }));
+
+
     rocket::ignite()
         .manage(db::connect())
         .mount("/headache", routes![headache])
