@@ -16,6 +16,7 @@ use std::process;
 use std::time::Duration;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
+use diesel::connection::SimpleConnection;
 
 mod db;
 mod schema;
@@ -56,7 +57,15 @@ fn read(connection: db::Connection) -> JsonValue {
 // Using this function to create a new SqliteConnection for each query to the database
 pub fn establish_new_db_connection() -> SqliteConnection {
     let url = "db.db";
-    SqliteConnection::establish(&url).expect(&format!("Error connecting to {}", url))
+    let connection: SqliteConnection = SqliteConnection::establish(&url).expect(&format!("Error connecting to {}", url));
+
+    // Comment this line to see the program panic
+    //match connection.batch_execute("PRAGMA busy_timeout=1000; PRAGMA journal_mode=WAL") {
+    match connection.batch_execute("PRAGMA busy_timeout=1000;") {
+        Ok(_r) => (),
+        Err(r) => println!("Could not set PRAGMA: {:?}", r)
+    }
+    connection
 }
 
 // Experimenting with concurrent access to database
@@ -73,7 +82,7 @@ fn headache(connection: db::Connection) -> JsonValue {
     // First get list of all beers
     let list_of_beers = Beer::read(&connection);
     let length = list_of_beers.len();
-    let number_of_bottles = 500;
+    let number_of_bottles = 700;
 
     // Then, for each beer spawn a thread
     for beer in list_of_beers {
@@ -82,10 +91,12 @@ fn headache(connection: db::Connection) -> JsonValue {
                 Some(id) => {headache_thread_handler(id, number_of_bottles);},
                 None => {println!("ID not found");}
             }
-            thread::sleep(Duration::from_millis(2));
+            thread::sleep(Duration::from_millis(1));
         });
     }
 
+    // One detail here: I am not waiting for all the threads to finish to send the response
+    // This could be done by calling .join() for every thread
     json!({"status": format!("Opened {} beers", (length as u32) * number_of_bottles)})
 }
 
