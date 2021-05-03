@@ -14,8 +14,8 @@
 * Use diesel migrations instead of having the .db file in the repo
 
 ## Remark
-* This commit includes an experiment with multiple concurent accesses to the database
-  - The objetive is to get rid of this error:
+* There is one experiment with multiple concurent accesses to the database
+  - Without proper handling, this error shows up:
   ~~~
     thread 'Opening the 152. of Beer { id: Some(1), name: "Augustiner", style: "Hell", abv: 5.7 }
     <unnamed>' panicked at 'called `Result::unwrap()` on an `Err` value: DatabaseError(__Unknown, "database is locked")', src\beer.rs:36:14
