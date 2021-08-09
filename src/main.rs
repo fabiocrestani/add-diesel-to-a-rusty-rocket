@@ -9,6 +9,7 @@
 
 use rocket_contrib::json::Json;
 use rocket_contrib::json::JsonValue;
+use rocket::response::NamedFile;
 //use serde::{Serialize, Deserialize};
 use std::thread;
 use std::panic;
@@ -17,6 +18,8 @@ use std::time::Duration;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel::connection::SimpleConnection;
+extern crate csv;
+use csv::Writer;
 
 mod db;
 mod schema;
@@ -53,6 +56,34 @@ fn read(connection: db::Connection) -> JsonValue {
     let r = Beer::read(&connection);
     json!(r)
 }
+
+// Returns a list of all beers inside a CSV file
+#[get("/")]
+fn downloadCsv(connection: db::Connection) -> Option<NamedFile> {
+    let r = Beer::read(&connection);
+    let mut w = match Writer::from_path("test.csv") {
+    	Ok(mut csv_w) => {
+			csv_w.write_record(&["id", "name", "style", "abv"]).unwrap_or(());
+			for beer in &r {
+				let id = match beer.id {
+					Some(id) => id.to_string(),
+					None => "".to_string()
+				};
+				let name = beer.name.clone();
+				let style = beer.style.clone();
+				csv_w.write_record(&[id, name, style, beer.abv.to_string()]).unwrap_or(());
+			}
+
+			csv_w.flush().unwrap_or(());
+    	},
+    	Err(_) => { println!("Error creating csv file"); }
+	};
+	
+	
+  
+    NamedFile::open("test.csv").ok()
+}
+
 
 // Using this function to create a new SqliteConnection for each query to the database
 pub fn establish_new_db_connection() -> SqliteConnection {
@@ -101,8 +132,6 @@ fn headache(connection: db::Connection) -> JsonValue {
 }
 
 fn main() {
-
-
     // For debugging only, stopping everything when one thread panicked
     // take_hook() returns the default hook in case when a custom one is not set
     let orig_hook = panic::take_hook();
@@ -112,12 +141,12 @@ fn main() {
         process::exit(1);
     }));
 
-
     rocket::ignite()
         .manage(db::connect())
         .mount("/headache", routes![headache])
         .mount("/beer", routes![create, update, delete])
         .mount("/beers", routes![read])
+        .mount("/csv", routes![downloadCsv])
         .launch();
         
 }

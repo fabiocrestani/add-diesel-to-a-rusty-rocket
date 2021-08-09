@@ -1,2 +1,5 @@
 [global.databases]
 sqlite_logs = { url = "database.db"}
+
+[development]
+address = "0.0.0.0"
